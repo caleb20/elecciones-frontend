@@ -5,6 +5,7 @@ import Felicitaciones from "./components/Felicitaciones";
 import ErrorPage from "./components/ErrorPage";
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
+import MantenimientoPartido from "./components/MantenimientoPartido";
 
 const App = () => {
   return (
@@ -25,12 +26,21 @@ const App = () => {
         <Route
           path="/partidos"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRoles={['ROLE_ALUMNO']}>
               <Partidos />
             </ProtectedRoute>
           }
         />
-        
+
+           <Route
+          path="/mantenimiento"
+          element={
+            <ProtectedRoute requiredRoles={['ROLE_MAESTRO']}>
+              <MantenimientoPartido />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="*" element={<Navigate to="/error" />} />
       </Routes>
     </Router>
