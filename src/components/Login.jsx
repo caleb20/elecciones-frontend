@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
 
@@ -8,16 +8,19 @@ const Login = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
+/*   useEffect(() => {
+    localStorage.removeItem("token");
+  }, []); */
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const response = await login({ email, password });
 
-    if (response && response.codigo) {
-      // Guardar el código de alumno en algún lugar (ej. almacenamiento local o contexto)
-      localStorage.setItem("codigoAlumno", response.codigo);
+    if (response.success) {
+      localStorage.setItem("token", response.data.token);
       navigate("/partidos");
     } else {
-      setError("Verifique el usuario");
+      setError(response.data?.description || "Verifique el usuario");
     }
   };
 

@@ -1,20 +1,27 @@
+import axios from 'axios';
 import { API_BASE_URL } from '../../config';
 
-export const guardarSeleccion = async ({ codigoAlumno, codigoPartidoPolitico }) => {
-    const response = await fetch(`${API_BASE_URL}/votos/registrar-voto`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+export const guardarSeleccion = async (codigoAlumno, codigoPartidoPolitico) => {
+  try {
+    const token = localStorage.getItem('token'); // Obtener el token del localStorage
+    const response = await axios.post(
+      `${API_BASE_URL}/votos/registrar-voto`,
+      {
+        codigoAlumno,
+        codigoPartidoPolitico
       },
-      body: JSON.stringify({
-        codigoAlumno: codigoAlumno, // Asegúrate de que esté en el formato correcto
-        codigoPartidoPolitico: codigoPartidoPolitico
-      }),
-    });
-
-  if (!response.ok) {
-    throw new Error('Error saving selection');
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Agregar el token en el header Authorization
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    if (error.response) {
+      return error.response.data;
+    } else {
+      return { success: false, message: 'Ocurrió un error desconocido' };
+    }
   }
-
-  return response.json();
 };
