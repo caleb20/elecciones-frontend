@@ -1,34 +1,66 @@
 import React, { useState, useEffect } from "react";
 import { getPartidos } from "../services/partidoService";
 import { guardarSeleccion } from "../services/votoService";
-import { logout } from "../services/logout"; // Importa el servicio de logout
+import { refreshToken } from "../services/authService"; // Asegúrate de importar aquí
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
 const Partidos = () => {
   const [partidos, setPartidos] = useState([]);
   const [seleccionado, setSeleccionado] = useState(null);
-  const [error, setError] = useState(null);
-  const token = localStorage.getItem("token"); // Obtener el token del localStorage
+  const [showWarning, setShowWarning] = useState(false);
   const navigate = useNavigate();
+  const token = localStorage.getItem("token");
 
   useEffect(() => {
     if (!token) {
-      navigate("/error"); // Redirigir a la página 404 si no hay token
-    } else {
-      const fetchPartidos = async () => {
-        const response = await getPartidos();
+      navigate("/error");
+      return;
+    }
 
-        if (response.success) {
-          setPartidos(response.data); // `response.data` es el array de partidos
-        } else {
-          setError(response.message || "No se pudieron cargar los partidos");
-        }
-      };
+    const fetchPartidos = async () => {
+      const response = await getPartidos();
+      if (response.success) {
+        setPartidos(response.data);
+      } else {
+        console.error("Error al obtener los partidos:", response.message);
+      }
+    };
 
-      fetchPartidos();
+    fetchPartidos();
+
+    try {
+      const { exp } = jwtDecode(token);
+      const expirationTime = exp * 1000; // Convertir a milisegundos
+      const warningTime = expirationTime - Date.now() - 10000; // 10 segundos antes de la expiración
+
+      if (warningTime > 0) {
+        const timer = setTimeout(() => {
+          setShowWarning(true);
+        }, warningTime);
+
+        return () => clearTimeout(timer);
+      } else {
+        navigate("/error");
+      }
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      navigate("/error");
     }
   }, [token, navigate]);
+
+  const handleRefreshToken = async () => {
+    try {
+      const response = await refreshToken(token);
+      const newToken = response.data.token;
+      localStorage.setItem("token", newToken);
+      setShowWarning(false);
+    } catch (error) {
+      console.error("Error al refrescar el token:", error);
+      localStorage.removeItem("token");
+      navigate("/login");
+    }
+  };
 
   const handleGuardar = async () => {
     if (seleccionado === null) {
@@ -37,25 +69,32 @@ const Partidos = () => {
     }
 
     try {
-      // Extraer el códigoAlumno del token
       const tokenPayload = jwtDecode(token);
       const codigoAlumno = tokenPayload.codigoAlumno;
 
-      const result = await guardarSeleccion(codigoAlumno, seleccionado);
-
-      if (result.success) {
-        // Si el voto se guarda correctamente, hacer logout
+      const response = await guardarSeleccion(codigoAlumno, seleccionado);
+      if (response.success) {
         navigate("/felicitaciones");
       } else {
-        console.error("Error saving selection:", result.message);
+        console.error("Error al guardar la selección:", response.message);
       }
     } catch (error) {
-      console.error("Error saving selection:", error);
+      console.error("Error al guardar la selección:", error);
     }
   };
 
   const handleChange = (codigo) => {
     setSeleccionado(codigo);
+  };
+
+  const handleWarningResponse = (response) => {
+    if (response === "yes") {
+      console.log("Entra aca");
+      handleRefreshToken();
+    } else {
+      localStorage.removeItem("token");
+      navigate("/login");
+    }
   };
 
   return (
@@ -64,7 +103,6 @@ const Partidos = () => {
         <h2 className="text-3xl mb-6 text-center text-blue-500 font-semibold">
           Lista de Partidos
         </h2>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
         <ul className="list-none">
           {partidos.map((partido) => (
             <li key={partido.codigo} className="mb-4">
@@ -99,6 +137,31 @@ const Partidos = () => {
         >
           Guardar
         </button>
+
+        {showWarning && (
+          <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow-md">
+              <h3 className="text-xl mb-4">Advertencia</h3>
+              <p className="mb-4">
+                El token está a punto de expirar. ¿Desea continuar?
+              </p>
+              <div className="flex justify-end">
+                <button
+                  onClick={() => handleWarningResponse("yes")}
+                  className="py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
+                >
+                  Sí
+                </button>
+                <button
+                  onClick={() => handleWarningResponse("no")}
+                  className="py-2 px-4 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

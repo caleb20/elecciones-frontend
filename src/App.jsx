@@ -1,29 +1,40 @@
-import React from 'react';
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
-import Login from './components/Login';
-import Partidos from './components/Partidos';
-import NotFound from './components/NotFound'; 
-import Felicitaciones from './components/Felicitaciones'; // Importa tu componente 404
-// Importa tu componente 404
-/* import { AuthProvider } from './contexts/AuthContext'; */
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import Partidos from "./components/Partidos";
+import Felicitaciones from "./components/Felicitaciones";
+import ErrorPage from "./components/ErrorPage";
+import Login from "./components/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const App = () => {
-
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/partidos" element={<Partidos />} />
-        <Route path="/felicitaciones" element={<Felicitaciones />} />
-        <Route path="/error" element={<NotFound />} /> {/* Ruta para 404 */}
+        <Route path="/error" element={<ErrorPage />} />
+        
+        <Route
+          path="/felicitaciones"
+          element={
+            <ProtectedRoute>
+              <Felicitaciones />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route
+          path="/partidos"
+          element={
+            <ProtectedRoute>
+              <Partidos />
+            </ProtectedRoute>
+          }
+        />
+        
+        <Route path="*" element={<Navigate to="/error" />} />
       </Routes>
     </Router>
   );
 };
-export default App;
 
-/* export default () => (
-  <AuthProvider>
-    <App />
-  </AuthProvider>
-); */
+export default App;

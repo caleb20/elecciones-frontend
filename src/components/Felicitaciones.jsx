@@ -1,7 +1,7 @@
 // src/components/Felicitaciones.jsx
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { logout } from "../services/logout"; // Importa el servicio de logout
+import { logout } from "../services/authService"; // Importa el servicio de logout
 
 const Felicitaciones = () => {
   const navigate = useNavigate();
