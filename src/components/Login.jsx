@@ -1,13 +1,21 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../services/authService";
 import { jwtDecode } from "jwt-decode";
+import { AuthContext } from "../context/AuthProvider"; // Asegúrate de importar el contexto
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const navigate = useNavigate();
+  const { setToken } = useContext(AuthContext); // Usa el contexto para actualizar el token
+
+  useEffect(() => {
+    // Elimina el token del localStorage y del estado del contexto cuando se monte el componente
+    localStorage.removeItem("token");
+    setToken(null);
+  }, [setToken]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,18 +24,15 @@ const Login = () => {
     if (response.success) {
       const token = response.data.token;
       localStorage.setItem("token", token);
-      console.log("123");
+      setToken(token); // Actualiza el contexto con el nuevo token
+
       const decodedToken = jwtDecode(token);
-      const roles = decodedToken.roles.map(role => role.authority) || [];
-      console.log("Entra acá1");
-      console.log(roles)
+      const roles = decodedToken.roles.map((role) => role.authority) || [];
       if (roles.includes("ROLE_MAESTRO")) {
-        console.log("Entra acá2");
         navigate("/mantenimiento");
       } else {
-        navigate("/partidos");
+        navigate("/votacion");
       }
-
     } else {
       setError(response.data?.description || "Verifique el usuario");
     }

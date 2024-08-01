@@ -1,16 +1,21 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { getPartidos } from "../services/partidoService";
 import { guardarSeleccion } from "../services/votoService";
-import { refreshToken } from "../services/authService"; // Asegúrate de importar aquí
+import { refreshToken } from "../services/authService";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 
-const Partidos = () => {
+const WARNING_TIME_MS = 10000; // 10 segundos antes de la expiración
+
+const Votacion = () => {
   const [partidos, setPartidos] = useState([]);
   const [seleccionado, setSeleccionado] = useState(null);
   const [showWarning, setShowWarning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(0);
   const navigate = useNavigate();
   const token = localStorage.getItem("token");
+  const warningTimerRef = useRef(null); // Referencia al temporizador de advertencia
+  const countdownTimerRef = useRef(null); // Referencia al temporizador de cuenta regresiva
 
   useEffect(() => {
     if (!token) {
@@ -29,24 +34,59 @@ const Partidos = () => {
 
     fetchPartidos();
 
-    try {
-      const { exp } = jwtDecode(token);
-      const expirationTime = exp * 1000; // Convertir a milisegundos
-      const warningTime = expirationTime - Date.now() - 10000; // 10 segundos antes de la expiración
+    const updateWarning = () => {
+      try {
+        const { exp } = jwtDecode(token);
+        const expirationTime = exp * 1000;
+        const totalTimeLeft = expirationTime - Date.now();
+        const warningTime = totalTimeLeft - WARNING_TIME_MS;
 
-      if (warningTime > 0) {
-        const timer = setTimeout(() => {
-          setShowWarning(true);
-        }, warningTime);
+        if (totalTimeLeft > 0) {
+          setTimeLeft(Math.floor(totalTimeLeft / 1000));
 
-        return () => clearTimeout(timer);
-      } else {
+          // Limpiar el temporizador de advertencia previo
+          if (warningTimerRef.current) {
+            clearTimeout(warningTimerRef.current);
+          }
+
+          // Configurar el temporizador de advertencia
+          warningTimerRef.current = setTimeout(() => {
+            setShowWarning(true);
+          }, warningTime);
+
+          // Limpiar el temporizador de cuenta regresiva previo
+          if (countdownTimerRef.current) {
+            clearInterval(countdownTimerRef.current);
+          }
+
+          // Configurar el temporizador de cuenta regresiva
+          countdownTimerRef.current = setInterval(() => {
+            const remainingTime = expirationTime - Date.now();
+            setTimeLeft(Math.floor(remainingTime / 1000));
+            if (remainingTime <= 0) {
+              clearInterval(countdownTimerRef.current);
+              navigate("/error");
+            }
+          }, 1000);
+
+          return () => {
+            clearInterval(countdownTimerRef.current);
+            clearTimeout(warningTimerRef.current);
+          };
+        }
+      } catch (error) {
+        console.error("Error decoding token:", error);
         navigate("/error");
       }
-    } catch (error) {
-      console.error("Error decoding token:", error);
-      navigate("/error");
-    }
+    };
+
+    updateWarning();
+
+    return () => {
+      clearInterval(countdownTimerRef.current);
+      clearTimeout(warningTimerRef.current);
+    };
+
   }, [token, navigate]);
 
   const handleRefreshToken = async () => {
@@ -55,10 +95,43 @@ const Partidos = () => {
       const newToken = response.data.token;
       localStorage.setItem("token", newToken);
       setShowWarning(false);
+      
+      try {
+        const { exp } = jwtDecode(newToken);
+        const expirationTime = exp * 1000;
+        const totalTimeLeft = expirationTime - Date.now();
+        const warningTime = totalTimeLeft - WARNING_TIME_MS;
+
+        setTimeLeft(Math.floor(totalTimeLeft / 1000));
+
+        if (warningTimerRef.current) {
+          clearTimeout(warningTimerRef.current);
+        }
+
+        warningTimerRef.current = setTimeout(() => {
+          setShowWarning(true);
+        }, warningTime);
+
+        if (countdownTimerRef.current) {
+          clearInterval(countdownTimerRef.current);
+        }
+
+        countdownTimerRef.current = setInterval(() => {
+          const remainingTime = expirationTime - Date.now();
+          setTimeLeft(Math.floor(remainingTime / 1000));
+          if (remainingTime <= 0) {
+            clearInterval(countdownTimerRef.current);
+            navigate("/error");
+          }
+        }, 1000);
+
+      } catch (error) {
+        console.error("Error decoding new token:", error);
+      }
     } catch (error) {
       console.error("Error al refrescar el token:", error);
       localStorage.removeItem("token");
-      navigate("/login");
+      navigate("/");
     }
   };
 
@@ -89,16 +162,19 @@ const Partidos = () => {
 
   const handleWarningResponse = (response) => {
     if (response === "yes") {
-      console.log("Entra aca");
       handleRefreshToken();
     } else {
       localStorage.removeItem("token");
-      navigate("/login");
+      navigate("/");
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="relative flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="absolute top-0 right-0 m-4 p-2 bg-white border rounded shadow">
+        Tiempo restante: {Math.floor(timeLeft / 60)}:
+        {timeLeft % 60 < 10 ? `0${timeLeft % 60}` : timeLeft % 60} minutos
+      </div>
       <div className="bg-white p-8 rounded shadow-md w-full max-w-md">
         <h2 className="text-3xl mb-6 text-center text-blue-500 font-semibold">
           Lista de Partidos
@@ -167,4 +243,4 @@ const Partidos = () => {
   );
 };
 
-export default Partidos;
+export default Votacion;

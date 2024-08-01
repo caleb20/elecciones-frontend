@@ -1,11 +1,11 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import Partidos from "./components/Partidos";
+import Votacion from "./components/Votacion";
 import Felicitaciones from "./components/Felicitaciones";
 import ErrorPage from "./components/ErrorPage";
 import Login from "./components/Login";
 import ProtectedRoute from "./components/ProtectedRoute";
-import MantenimientoPartido from "./components/MantenimientoPartido";
+import Mantenimiento from "./components/Mantenimiento";
 
 const App = () => {
   return (
@@ -24,10 +24,10 @@ const App = () => {
         />
         
         <Route
-          path="/partidos"
+          path="/votacion"
           element={
             <ProtectedRoute requiredRoles={['ROLE_ALUMNO']}>
-              <Partidos />
+              <Votacion />
             </ProtectedRoute>
           }
         />
@@ -36,7 +36,7 @@ const App = () => {
           path="/mantenimiento"
           element={
             <ProtectedRoute requiredRoles={['ROLE_MAESTRO']}>
-              <MantenimientoPartido />
+              <Mantenimiento />
             </ProtectedRoute>
           }
         />
